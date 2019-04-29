@@ -1,7 +1,12 @@
 {
   "compilerOptions": {
+    "target": "es2015",
+    "module": "commonjs",
+    "jsx": "react",
+    "outDir": "dist"
   },
   "include": [
-    "example/**/*.ts"
+    "example/**/*.ts",
+    "example/**/*.tsx"
   ]
 }
