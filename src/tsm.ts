@@ -32,7 +32,11 @@ function createTransformers(getVersion: (module: string) => string) {
         return node;
       } else {
         let version = getVersion(module);
-        version = version ? "@" + version : "";
+        if (version) {
+          version = "@"+convertSemver(version);
+        } else {
+          version = "";
+        }
         (importDecl.moduleSpecifier as any).text = `https://dev.jspm.io/${module}${version}`;
         return node;
       }
@@ -71,6 +75,23 @@ function createVersionProvider(
         json.devDependencies[module]) as string;
     };
   }
+}
+
+function convertSemver(semver: string) {
+  if (semver.startsWith("~")) {
+    const m = semver.match(/^~(\d+)\.(\d+)/);
+    if (m) {
+      return `${m[1]}.${m[2]}`
+    }
+  } else if (semver.startsWith("^")) {
+    const m = semver.match(/\^(\d+)/);
+    if (m) {
+      return `${m[1]}`
+    }
+  } else if (semver.startsWith("*")) {
+    return "";
+  }
+  return semver;
 }
 
 async function action(
