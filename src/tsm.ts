@@ -3,12 +3,13 @@ import * as glob from "glob";
 import * as path from "path";
 import * as fs from "fs";
 import * as prog from "caporal";
-import { ensureDir, readFile, writeFile } from "fs-extra";
+import * as chokidar from "chokidar";
+import { ensureDir, writeFile } from "fs-extra";
 import { promisify } from "util";
 
 const globAsync = promisify(glob).bind(glob);
-
 prog
+  .name("tsm")
   .version("0.1.0")
   .argument("[files...]", "glob pattern to transpile")
   .option("--watch", "watch")
@@ -33,7 +34,7 @@ function createTransformers(getVersion: (module: string) => string) {
       } else {
         let version = getVersion(module);
         if (version) {
-          version = "@"+convertSemver(version);
+          version = "@" + convertSemver(version);
         } else {
           version = "";
         }
@@ -81,12 +82,12 @@ function convertSemver(semver: string) {
   if (semver.startsWith("~")) {
     const m = semver.match(/^~(\d+)\.(\d+)/);
     if (m) {
-      return `${m[1]}.${m[2]}`
+      return `${m[1]}.${m[2]}`;
     }
   } else if (semver.startsWith("^")) {
     const m = semver.match(/\^(\d+)/);
     if (m) {
-      return `${m[1]}`
+      return `${m[1]}`;
     }
   } else if (semver.startsWith("*")) {
     return "";
@@ -94,18 +95,36 @@ function convertSemver(semver: string) {
   return semver;
 }
 
-async function action(
-  args: { files: string[] },
-  {
-    outDir = "",
-    watch = false,
-    lockFile
-  }: { outDir: string; watch: boolean; lockFile: string }
-) {
+type TranspileOptions = {
+  files: string[];
+  watch: boolean;
+  outDir: string;
+  lockFile: string;
+};
+
+function doWatch(opts: TranspileOptions) {
+  for (const pat of opts.files) {
+    console.log(`watching ${pat}...`);
+    const watcher = chokidar.watch(pat);
+    watcher.on("change", async file => {
+      console.log(`${file} changed...`);
+      await doTranspile({
+        files: [file],
+        outDir: opts.outDir,
+        lockFile: opts.lockFile,
+        watch: false
+      });
+      console.log("done");
+    });
+  }
+}
+
+async function doTranspile(opts: TranspileOptions) {
+  const { lockFile, files, outDir } = opts;
   const versionProvider = createVersionProvider(lockFile);
   const transformers = createTransformers(versionProvider);
-  for (const arg of args.files) {
-    const files = await globAsync(arg);
+  for (const pat of files) {
+    const files = await globAsync(pat);
     const compilerOptions: ts.CompilerOptions = {
       target: ts.ScriptTarget.ESNext,
       module: ts.ModuleKind.ESNext,
@@ -119,14 +138,33 @@ async function action(
       await ensureDir(distDir);
       const o = ts.transpileModule(text, {
         fileName: path.basename(file),
-        compilerOptions,
+        compilerOptions
       });
-      const source = ts.createSourceFile("", o.outputText, compilerOptions.target);
-      const t = ts.transform(source, transformers, compilerOptions)
+      const source = ts.createSourceFile(
+        "",
+        o.outputText,
+        compilerOptions.target
+      );
+      const t = ts.transform(source, transformers, compilerOptions);
       const printer = ts.createPrinter();
       const i = printer.printFile(t.transformed[0] as ts.SourceFile);
       await writeFile(dist, i);
     }
+  }
+}
+
+function action(
+  { files }: { files: string[] },
+  {
+    outDir = "",
+    watch = false,
+    lockFile
+  }: { outDir: string; watch: boolean; lockFile: string }
+) {
+  if (watch) {
+    doWatch({ files, watch, lockFile, outDir });
+  } else {
+    doTranspile({ files, watch, lockFile, outDir });
   }
 }
 

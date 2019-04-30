@@ -6,7 +6,7 @@
     "outDir": "dist"
   },
   "include": [
-    "example/**/*.ts",
-    "example/**/*.tsx"
+    "*.ts",
+    "src/*.ts"
   ]
 }
