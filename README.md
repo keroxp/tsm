@@ -1,2 +1,8 @@
 # tsm
 TypeScript module transpiler from CommonJS to Pure ESModule
+
+## Usage
+
+```bash
+$ tsm 
+```
