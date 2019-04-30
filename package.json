@@ -1,7 +1,7 @@
 {
-  "name": "tsm",
+  "name": "@keroxp/tsm",
   "version": "0.1.0",
-  "main": "index.js",
+  "main": "./dist/src/tsm.js",
   "author": "keroxp <kerokerokerop@gmail.com>",
   "license": "MIT",
   "scripts": {
