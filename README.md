@@ -23,7 +23,7 @@ This command do steps as follows:
 
 - globbing files
 - replace commonjs style import statement into Native ES Module style imports
-- 
+- transpile ts(x) code into js by TypeScript compiler API
 
 from `src/index.tsx`
 
@@ -39,9 +39,18 @@ render(<View title="Hello tsm" />, document.getElementById("body"));
 into `src/index.js`
 
 ```ts
-import React from "https://dev.jspm.io/react
+import React from "https://dev.jspm.io/react"
+import ReactDOM from "https://dev.jspm.io/react-dom"
 import {a} from "./other.js"
+const View = (props) => (React.createElement("div", null, props.title));
+ReactDOM.render(View, document.getElementById("body"));
 ```
+
+### FAQ
+
+**Is it bundler like webpack?**
+
+No. This is module transpiler from CommonJS to ES Module built top of `tsc`
 
 ### Detailed Usage
 
