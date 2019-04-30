@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -79,6 +80,7 @@ function createVersionProvider(lockFile = "package-lock.json") {
         };
     }
 }
+exports.createVersionProvider = createVersionProvider;
 function convertSemver(semver) {
     if (semver.startsWith("~")) {
         const m = semver.match(/^~(\d+)\.(\d+)/);
@@ -113,6 +115,7 @@ function doWatch(opts) {
         }));
     }
 }
+exports.doWatch = doWatch;
 function doTranspile(opts) {
     return __awaiter(this, void 0, void 0, function* () {
         const { lockFile, files, outDir } = opts;
@@ -144,6 +147,7 @@ function doTranspile(opts) {
         }
     });
 }
+exports.doTranspile = doTranspile;
 function action({ files }, { outDir = "", watch = false, lockFile }) {
     if (watch) {
         doWatch({ files, watch, lockFile, outDir });
@@ -153,3 +157,6 @@ function action({ files }, { outDir = "", watch = false, lockFile }) {
     }
 }
 exports.default = prog;
+if (require.main) {
+    prog.parse(process.argv);
+}

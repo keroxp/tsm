@@ -1,7 +1,7 @@
 {
   "name": "@keroxp/tsm",
-  "version": "0.1.0",
-  "main": "./dist/src/tsm.js",
+  "version": "0.1.1",
+  "main": "./dist/tsm.js",
   "author": "keroxp <kerokerokerop@gmail.com>",
   "license": "MIT",
   "scripts": {
@@ -11,6 +11,7 @@
     "access": "public"
   },
   "bin": "./dist/main.js",
+  "types": "./dist/tsm.d.ts",
   "dependencies": {
     "caporal": "^1.1.0",
     "chokidar": "^2.1.5",

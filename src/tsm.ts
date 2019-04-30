@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import * as ts from "typescript";
 import * as glob from "glob";
 import * as path from "path";
@@ -56,7 +57,7 @@ function createTransformers(getVersion: (module: string) => string) {
   return [swapImport];
 }
 
-function createVersionProvider(
+export function createVersionProvider(
   lockFile: string = "package-lock.json"
 ): (module: string) => string {
   if (fs.existsSync(lockFile)) {
@@ -95,14 +96,14 @@ function convertSemver(semver: string) {
   return semver;
 }
 
-type TranspileOptions = {
+export type TranspileOptions = {
   files: string[];
   watch: boolean;
   outDir: string;
   lockFile: string;
 };
 
-function doWatch(opts: TranspileOptions) {
+export function doWatch(opts: TranspileOptions) {
   for (const pat of opts.files) {
     console.log(`watching ${pat}...`);
     const watcher = chokidar.watch(pat);
@@ -119,7 +120,7 @@ function doWatch(opts: TranspileOptions) {
   }
 }
 
-async function doTranspile(opts: TranspileOptions) {
+export async function doTranspile(opts: TranspileOptions) {
   const { lockFile, files, outDir } = opts;
   const versionProvider = createVersionProvider(lockFile);
   const transformers = createTransformers(versionProvider);
@@ -169,3 +170,7 @@ function action(
 }
 
 export default prog;
+
+if (require.main) {
+  prog.parse(process.argv);
+}

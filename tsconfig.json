@@ -3,10 +3,10 @@
     "target": "es2015",
     "module": "commonjs",
     "jsx": "react",
-    "outDir": "dist"
+    "outDir": "dist",
+    "declaration": true
   },
   "include": [
-    "*.ts",
     "src/*.ts"
   ]
 }
