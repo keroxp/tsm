@@ -17,6 +17,9 @@ const prog = require("caporal");
 const chokidar = require("chokidar");
 const fs_extra_1 = require("fs-extra");
 const util_1 = require("util");
+const Debug = require("debug");
+const process = require("process");
+const logger = Debug("tsm:");
 const globAsync = util_1.promisify(glob).bind(glob);
 prog
     .name("tsm")
@@ -24,6 +27,7 @@ prog
     .argument("[files...]", "glob pattern to transpile")
     .option("--watch", "watch")
     .option("--outDir <outDir>", "output directory")
+    .option("--tsconfig <tsconfig>", "tsconfig.json path")
     .option("--lockFile <lockFile>", "package-lock.json")
     .action(action);
 function createTransformers(getVersion) {
@@ -71,7 +75,7 @@ function createVersionProvider(lockFile = "package-lock.json") {
             }
         };
     }
-    else {
+    else if (fs.existsSync("package.json")) {
         const pkg = fs.readFileSync("package.json").toString();
         const json = JSON.parse(pkg);
         return (module) => {
@@ -79,6 +83,7 @@ function createVersionProvider(lockFile = "package-lock.json") {
                 json.devDependencies[module]);
         };
     }
+    return _ => "";
 }
 exports.createVersionProvider = createVersionProvider;
 function convertSemver(semver) {
@@ -108,8 +113,8 @@ function doWatch(opts) {
             yield doTranspile({
                 files: [file],
                 outDir: opts.outDir,
-                lockFile: opts.lockFile,
-                watch: false
+                compilerOptions: opts.compilerOptions,
+                versionProvider: opts.versionProvider
             });
             console.log("done");
         }));
@@ -118,16 +123,10 @@ function doWatch(opts) {
 exports.doWatch = doWatch;
 function doTranspile(opts) {
     return __awaiter(this, void 0, void 0, function* () {
-        const { lockFile, files, outDir } = opts;
-        const versionProvider = createVersionProvider(lockFile);
+        const { versionProvider, files, outDir, compilerOptions } = opts;
         const transformers = createTransformers(versionProvider);
         for (const pat of files) {
             const files = yield globAsync(pat);
-            const compilerOptions = {
-                target: ts.ScriptTarget.ESNext,
-                module: ts.ModuleKind.ESNext,
-                jsx: ts.JsxEmit.React
-            };
             for (const file of files) {
                 const text = fs.readFileSync(file).toString();
                 const outFile = file.replace(/\.tsx?$/, ".js");
@@ -148,15 +147,53 @@ function doTranspile(opts) {
     });
 }
 exports.doTranspile = doTranspile;
-function action({ files }, { outDir = "", watch = false, lockFile }) {
-    if (watch) {
-        doWatch({ files, watch, lockFile, outDir });
+function obtainFilePatterns(...i) {
+    for (const v of i) {
+        if (v && v.length > 0) {
+            return v;
+        }
     }
-    else {
-        doTranspile({ files, watch, lockFile, outDir });
-    }
+    throw new Error("no file glob patterns specified");
 }
-exports.default = prog;
+function action(args, opts) {
+    return __awaiter(this, void 0, void 0, function* () {
+        logger(args, opts);
+        let config = {};
+        let outDir = opts.outDir || ".";
+        const tsconfig = opts.tsconfig || "tsconfig.json";
+        if (fs.existsSync(tsconfig)) {
+            logger(`tsconfig specified: ${tsconfig}`);
+            const text = (yield fs_extra_1.readFile(tsconfig)).toString();
+            const json = ts.parseConfigFileTextToJson(tsconfig, text);
+            if (json.error) {
+                console.error(json.error);
+                process.exit(1);
+            }
+            config = json.config;
+            console.log(config);
+            if (config.compilerOptions && config.compilerOptions.outDir) {
+                const dir = path.dirname(tsconfig);
+                outDir = path.resolve(dir, config.compilerOptions.outDir);
+            }
+        }
+        let files = obtainFilePatterns(args.files, config.files, config.include);
+        logger(`files: ${files}, ourDir: ${outDir}`);
+        let versionProvider = createVersionProvider(opts.lockFile);
+        const compilerOptions = config.compilerOptions;
+        compilerOptions.module = ts.ModuleKind.ES2015;
+        compilerOptions.target = ts.ScriptTarget.ES2015;
+        if (!compilerOptions.jsx) {
+            compilerOptions.jsx = ts.JsxEmit.React;
+        }
+        const watch = !!opts.watch;
+        if (watch) {
+            doWatch({ files, outDir, compilerOptions, versionProvider });
+        }
+        else {
+            doTranspile({ files, outDir, compilerOptions, versionProvider });
+        }
+    });
+}
 if (require.main) {
     prog.parse(process.argv);
 }

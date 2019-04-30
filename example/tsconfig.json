@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "outDir": "dist",
+    "jsx": "react"
+  },
+  "files": [
+    "**/*.ts",
+    "**/*.tsx"
+  ]
+}
