@@ -1,26 +1,34 @@
 #!/usr/bin/env node
-"use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function fulfilled(value) { try {
+            step(generator.next(value));
+        }
+        catch (e) {
+            reject(e);
+        } }
+        function rejected(value) { try {
+            step(generator["throw"](value));
+        }
+        catch (e) {
+            reject(e);
+        } }
         function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-Object.defineProperty(exports, "__esModule", { value: true });
-const ts = require("typescript");
-const glob = require("glob");
-const path = require("path");
-const fs = require("fs");
-const prog = require("caporal");
-const chokidar = require("chokidar");
-const fs_extra_1 = require("fs-extra");
-const util_1 = require("util");
-const Debug = require("debug");
-const process = require("process");
+import * as ts from "https://dev.jspm.io/typescript@3.4.5";
+import * as glob from "https://dev.jspm.io/glob@7.1.3";
+import * as path from "https://dev.jspm.io/path";
+import * as fs from "https://dev.jspm.io/fs";
+import * as prog from "https://dev.jspm.io/caporal@1.1.0";
+import * as chokidar from "https://dev.jspm.io/chokidar@2.1.5";
+import { ensureDir, readFile, writeFile } from "https://dev.jspm.io/fs-extra@7.0.1";
+import { promisify } from "https://dev.jspm.io/util";
+import * as Debug from "https://dev.jspm.io/debug@4.1.1";
+import * as process from "https://dev.jspm.io/process";
 const logger = Debug("tsm:");
-const globAsync = util_1.promisify(glob).bind(glob);
+const globAsync = promisify(glob).bind(glob);
 prog
     .name("tsm")
     .version("0.1.0")
@@ -64,7 +72,7 @@ function createTransformers(getVersion) {
     };
     return [swapImport];
 }
-function createVersionProvider(lockFile = "package-lock.json") {
+export function createVersionProvider(lockFile = "package-lock.json") {
     if (fs.existsSync(lockFile)) {
         const lock = fs.readFileSync(lockFile).toString();
         const json = JSON.parse(lock);
@@ -85,7 +93,6 @@ function createVersionProvider(lockFile = "package-lock.json") {
     }
     return _ => "";
 }
-exports.createVersionProvider = createVersionProvider;
 function convertSemver(semver) {
     if (semver.startsWith("~")) {
         const m = semver.match(/^~(\d+)\.(\d+)/);
@@ -104,7 +111,7 @@ function convertSemver(semver) {
     }
     return semver;
 }
-function doWatch(opts) {
+export function doWatch(opts) {
     for (const pat of opts.files) {
         console.log(`watching ${pat}...`);
         const watcher = chokidar.watch(pat);
@@ -120,8 +127,7 @@ function doWatch(opts) {
         }));
     }
 }
-exports.doWatch = doWatch;
-function createDiagnosticReporter(system, pretty) {
+export function createDiagnosticReporter(system, pretty) {
     const host = {
         getCurrentDirectory: () => system.getCurrentDirectory(),
         getNewLine: () => system.newLine,
@@ -138,7 +144,7 @@ function createDiagnosticReporter(system, pretty) {
     };
 }
 const reporter = createDiagnosticReporter(ts.sys);
-function doTranspile(opts) {
+export function doTranspile(opts) {
     return __awaiter(this, void 0, void 0, function* () {
         const { versionProvider, files, outDir, compilerOptions } = opts;
         const transformers = createTransformers(versionProvider);
@@ -149,7 +155,7 @@ function doTranspile(opts) {
                 const outFile = file.replace(/\.tsx?$/, ".js");
                 let dist = path.join(outDir, outFile);
                 const distDir = path.dirname(dist);
-                yield fs_extra_1.ensureDir(distDir);
+                yield ensureDir(distDir);
                 const o = ts.transpileModule(text, {
                     fileName: path.basename(file),
                     reportDiagnostics: true,
@@ -158,18 +164,15 @@ function doTranspile(opts) {
                 if (o.diagnostics.length > 0) {
                     o.diagnostics.forEach(reporter);
                 }
-                else {
-                    const source = ts.createSourceFile("", o.outputText, compilerOptions.target);
-                    const t = ts.transform(source, transformers, compilerOptions);
-                    const printer = ts.createPrinter();
-                    const i = printer.printFile(t.transformed[0]);
-                    yield fs_extra_1.writeFile(dist, i);
-                }
+                const source = ts.createSourceFile("", o.outputText, compilerOptions.target);
+                const t = ts.transform(source, transformers, compilerOptions);
+                const printer = ts.createPrinter();
+                const i = printer.printFile(t.transformed[0]);
+                yield writeFile(dist, i);
             }
         }
     });
 }
-exports.doTranspile = doTranspile;
 function obtainFilePatterns(...i) {
     for (const v of i) {
         if (v && v.length > 0) {
@@ -186,7 +189,7 @@ function action(args, opts) {
         const tsconfig = opts.tsconfig || "tsconfig.json";
         if (fs.existsSync(tsconfig)) {
             logger(`tsconfig specified: ${tsconfig}`);
-            const text = (yield fs_extra_1.readFile(tsconfig)).toString();
+            const text = (yield readFile(tsconfig)).toString();
             const json = ts.parseConfigFileTextToJson(tsconfig, text);
             if (json.error) {
                 console.error(json.error);

@@ -9,9 +9,7 @@ import { ensureDir, readFile, writeFile } from "fs-extra";
 import { promisify } from "util";
 import * as Debug from "debug";
 import * as process from "process";
-
 const logger = Debug("tsm:");
-
 const globAsync = promisify(glob).bind(glob);
 prog
   .name("tsm")
@@ -142,6 +140,26 @@ type TsConfig = {
   errors?: string[];
 };
 
+function createDiagnosticReporter(system: ts.System, pretty?: boolean): ts.DiagnosticReporter {
+  const host: ts.FormatDiagnosticsHost = {
+    getCurrentDirectory: () => system.getCurrentDirectory(),
+    getNewLine: () => system.newLine,
+    getCanonicalFileName: f => f
+  };
+  if (!pretty) {
+    return diagnostic => system.write(ts.formatDiagnostic(diagnostic, host));
+  }
+
+  const diagnostics: ts.Diagnostic[] = new Array(1);
+  return diagnostic => {
+    diagnostics[0] = diagnostic;
+    system.write(ts.formatDiagnosticsWithColorAndContext(diagnostics, host) + host.getNewLine());
+    diagnostics[0] = undefined!; // TODO: GH#18217
+  };
+}
+
+const reporter: ts.DiagnosticReporter = createDiagnosticReporter(ts.sys);
+
 export async function doTranspile(opts: {
   versionProvider: (module: string) => string;
   files: string[];
@@ -160,17 +178,22 @@ export async function doTranspile(opts: {
       await ensureDir(distDir);
       const o = ts.transpileModule(text, {
         fileName: path.basename(file),
+        reportDiagnostics: true,
         compilerOptions
       });
-      const source = ts.createSourceFile(
-        "",
-        o.outputText,
-        compilerOptions.target
-      );
-      const t = ts.transform(source, transformers, compilerOptions);
-      const printer = ts.createPrinter();
-      const i = printer.printFile(t.transformed[0] as ts.SourceFile);
-      await writeFile(dist, i);
+      if (o.diagnostics.length > 0) {
+        o.diagnostics.forEach(reporter);
+      } else {
+        const source = ts.createSourceFile(
+          "",
+          o.outputText,
+          compilerOptions.target
+        );
+        const t = ts.transform(source, transformers, compilerOptions);
+        const printer = ts.createPrinter();
+        const i = printer.printFile(t.transformed[0] as ts.SourceFile);
+        await writeFile(dist, i);
+      }
     }
   }
 }
